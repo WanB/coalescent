@@ -1,6 +1,4 @@
-from numpy.random import exponential
-from numpy.random import rand
-from random import shuffle
+from numpy.random import rand, randint, exponential
 from scipy.special import binom
 from crypt import crypt
 from networkx import DiGraph
@@ -17,14 +15,78 @@ def num_leaves(T):
   return len(get_leaves(T))
 
 def get_root(T):
-  for n in T.nodes():
-    if T.out_degree(n) == 0:
-      return n
+  try:
+    return T.root
+
+  except AttributeError:
+    for n in T.nodes():
+      if T.out_degree(n) == 0:
+        T.root = n
+        return T.root
 
   return None
 
+
+def is_same_edge(e1, e2):
+  if (e1[0] == e2[0]) and (e1[1] == e2[1]):
+    return True
+
+  else:
+    return False
+
 def get_length(T, e):
   return T.get_edge_data(e[0], e[1])['length']
+
+def get_lower_node(e):
+  return e[0]
+
+def get_upper_node(e):
+  return e[1]
+
+def get_lower_edges(T, e):
+  if len(e) == 2:
+    lower = get_lower_node(e)
+
+  else:
+    lower = e
+
+  return T.in_edges(lower)
+
+def get_other(T, e):
+  upper = get_upper_node(e)
+  level = get_lower_edges(T, upper)
+
+  assert len(level)==2
+  if is_same_edge(level[0], e):
+    return level[1]
+
+  else:
+    assert is_same_edge(level[1], e)
+    return level[0]
+
+def get_upper_edges(T, e):
+  if len(e) == 2:
+    upper = get_upper_node(e)
+
+  else:
+    upper = e
+
+  edges = T.out_edges(upper)
+  if len(edges) == 1:
+    return edges[0]
+
+  elif len(edges) == 0:
+    return None
+
+  else:
+    assert False
+
+def is_top_edge(T, e):
+  if get_upper_node(e) == get_root(T):
+    return True
+
+  else:
+    return False
 
 def crawl_up(T, e):
   upper = e[1]
@@ -96,8 +158,14 @@ def random_edge(T):
 
 def subset(s, n):
   cards = list(s)
-  shuffle(cards)
-  return cards[0:n]
+  result = []
+  for i in range(n):
+    d = len(cards)
+    j = randint(0, d)
+    result.append(cards[j])
+    del cards[j]
+
+  return result
 
 def new_node(k):
   return crypt(str(k), 'aa')[2:]
@@ -105,12 +173,16 @@ def new_node(k):
 def sample(n):
   T = DiGraph()
   alive = dict()
+  heights = list()
+  total = 0.0
   for i in range(n):
     alive[i] = 0.0
 
   k = n
   while k > 1:
     event = exponential(1.0/binom(k, 2))
+    total += event
+    heights.append(total)
     for c in alive.keys():
       alive[c] += event
 
@@ -128,6 +200,7 @@ def sample(n):
     k -= 1
 
   T.below = collapse(T)
+  T.heights = heights
 
   return T
 
